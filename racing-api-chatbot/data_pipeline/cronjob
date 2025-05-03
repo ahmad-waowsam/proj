@@ -1,0 +1,2 @@
+# Run the data pipeline daily at midnight
+0 0 * * * cd /app && python src/data_pipeline.py >> /var/log/cron.log 2>&1 

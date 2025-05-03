@@ -1,0 +1,40 @@
+:root {
+  font-family: "Instrument Sans", serif;
+  line-height: 1.5;
+  font-weight: 400;
+ 
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body{
+  margin: 0;
+}
+
+/* Apply theme-transition to body when theme changes */
+body.theme-transition,
+body.theme-transition *,
+body.theme-transition *:before,
+body.theme-transition *:after {
+  transition: all 0.5s ease-in-out !important;
+  transition-property: background-color, color, border-color, fill, stroke, filter, box-shadow !important;
+}
+
+.gradient-background {
+  background: radial-gradient(circle at 170% 0%, rgba(239, 189, 147, 0.8) 0%, rgba(239, 189, 147, 0) 70%);
+}
+
+/* Ensure smooth icon color transitions */
+img {
+  transition: filter 0.5s ease-in-out !important;
+}
+
+/* Smooth box-shadow transitions if you have any */
+.MuiPaper-root,
+.MuiButton-root,
+.MuiCard-root {
+  transition: box-shadow 0.5s ease-in-out !important;
+}

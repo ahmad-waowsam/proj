@@ -1,0 +1,128 @@
+import React from "react";
+import { Box, Typography, Paper, useTheme, Avatar, Tooltip } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import ChatIcon from '@mui/icons-material/Chat';
+
+export default function ChatHistoryList({ title, sessions = [] }) {
+  const theme = useTheme();
+  const navigate = useNavigate();
+  
+  const handleChatItemClick = (session) => {
+    if (!session.threadId) {
+      console.warn("No thread ID found for session:", session);
+      return;
+    }
+    
+    // Navigate to the chat page with the thread ID
+    navigate(`/chat/${session.threadId}`, { 
+      state: { 
+        chatData: session 
+      } 
+    });
+    
+    // Dispatch an event to close the drawer on mobile
+    window.dispatchEvent(new CustomEvent('close-chat-drawer'));
+  };
+  
+  // Function to extract message preview
+  const getMessagePreview = (message, maxLength = 60) => {
+    if (!message) return "No message content";
+    return message.length > maxLength ? `${message.substring(0, maxLength)}...` : message;
+  };
+  
+  return (
+    <Box sx={{ px: 2, pb: 2 }}>
+      <Typography 
+        variant="subtitle2" 
+        color="text.secondary" 
+        sx={{ 
+          mb: 1.5,
+          fontSize: 12,
+          fontWeight: 500,
+          textTransform: 'uppercase'
+        }}
+      >
+        {title}
+      </Typography>
+      
+      {sessions.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 1 }}>
+          No chats found.
+        </Typography>
+      ) : (
+        sessions.map((session, i) => (
+          <Paper
+            key={session.id || i}
+            elevation={0}
+            onClick={() => handleChatItemClick(session)}
+            sx={{
+              px: 2, 
+              py: 1.5,
+              mb: 1,
+              borderRadius: '12px',
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'background.paper',
+              '&:hover': { 
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'action.hover',
+              },
+              cursor: 'pointer',
+              border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar 
+                  sx={{ 
+                    width: 24, 
+                    height: 24, 
+                    bgcolor: theme.palette.primary.main,
+                    opacity: 0.8,
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  <ChatIcon sx={{ fontSize: '16px' }} />
+                </Avatar>
+                <Tooltip title={session.chatTitle} placement="top">
+                  <Typography 
+                    noWrap 
+                    sx={{ 
+                      maxWidth: '160px',
+                      fontSize: 14,
+                      fontWeight: 500
+                    }}
+                  >
+                    {session.chatTitle}
+                  </Typography>
+                </Tooltip>
+              </Box>
+              <Typography 
+                variant="caption" 
+                color="text.secondary"
+                sx={{ fontSize: 11 }}
+              >
+                {session.time}
+              </Typography>
+            </Box>
+            <Typography 
+              variant="caption" 
+              color="text.secondary"
+              sx={{ 
+                fontSize: 11, 
+                display: 'block',
+                lineHeight: 1.3,
+                mt: 0.5,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+              }}
+            >
+              {getMessagePreview(session.query)}
+            </Typography>
+          </Paper>
+        ))
+      )}
+    </Box>
+  );
+}
+

@@ -1,0 +1,63 @@
+x-common: &common
+  stdin_open: true
+  tty: true
+  restart: unless-stopped
+  dns:
+    - 8.8.8.8
+    - 8.8.4.4
+
+services:
+  raceapi:
+    <<: [ *common ]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        REQUIREMENTS_FILE: requirements.txt
+    command: bash -c "python -m uvicorn src.main:app --host 0.0.0.0 --port 8001 --root-path /langgraph-race-api --reload"
+    ports:
+      - "8006:8001"
+    env_file:
+      - ./.env
+    volumes:
+      - .:/code
+    depends_on:
+      - postgres
+
+  data_pipeline:
+    <<: [ *common ]
+    build:
+      context: .
+      dockerfile: Dockerfile.pipeline
+    environment:
+      - RACING_API_USERNAME=${RACING_API_USERNAME}
+      - RACING_API_PASSWORD=${RACING_API_PASSWORD}
+      - RACING_API_BASE_URL=${RACING_API_BASE_URL}
+      - DATABASE_URL=${DATABASE_URL}
+      - PYTHONPATH=/app
+      - DOCKER_ENV=true
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  postgres:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5436:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=raceapi_cache
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
