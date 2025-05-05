@@ -141,9 +141,10 @@ export default function ChatDrawer({ onNewChat }) {
           userKey: chat.user_key || "",
           chatTitle: chatTitle,
           status: "Completed",
-          time: timeString,
+          time: timeString, // Time of the chat
           query: chat.query || "No query provided",
-          response: chat.response || "No response available"
+          response: chat.response || "No response available",
+          createdAt: chatDate // Store the actual date for display
         };
         
         // Categorize based on date
@@ -201,9 +202,9 @@ export default function ChatDrawer({ onNewChat }) {
       sx={{
         width: "100%",
         height: "100%",
-        backgroundColor: "background.default",
+        backgroundColor: theme.palette.mode === 'dark' ? '#0a0a0a' : 'white',
         border: `1px solid`,
-        borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'secondary.main',
+        borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'secondary.main',
         borderRadius: 3,
         display: "flex",
         flexDirection: "column",
@@ -281,6 +282,7 @@ export default function ChatDrawer({ onNewChat }) {
         sx={{
           flex: 1,
           overflowY: "auto",
+          backgroundColor: "inherit", // Use the same background as the parent
           "&::-webkit-scrollbar": {
             width: "6px",
           },

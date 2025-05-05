@@ -413,12 +413,8 @@ export default function ChatWindow({ isNewChat = false }) {
     <Box
       sx={{
         display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100%",
         width: "100%",
-        // Added to ensure no gap
-        pl: 0,
+        height: "100%",
       }}
     >
       {/* CHAT PANE */}
@@ -428,15 +424,10 @@ export default function ChatWindow({ isNewChat = false }) {
           flexDirection: "column",
           width: "100%",
           height: "100%",
-          // Updated to match the chat drawer's radius
-          borderRadius: { xs: 0, md: '0 12px 12px 0' },
+          borderRadius: { xs: 0, md: '12px' },
           overflow: "hidden",
           bgcolor: "background.default",
-          // Updated border styling to connect with chat drawer
-          borderTop: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.06)',
-          borderRight: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.06)',
-          borderBottom: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.06)',
-          borderLeft: 0,
+          border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.06)',
           boxShadow: theme.palette.mode === 'dark' ? 'none' : '0px 2px 10px rgba(0, 0, 0, 0.05)',
         }}
       >
@@ -502,7 +493,7 @@ export default function ChatWindow({ isNewChat = false }) {
                   textAlign: "center",
                 }}
               >
-                How can I help you with racing insights today?
+                What can I help you with?
               </Typography>
 
               <Box
@@ -657,8 +648,8 @@ export default function ChatWindow({ isNewChat = false }) {
                 alt="send"
                 style={{
                   filter: theme.palette.mode === 'dark' && message.trim() ? 'brightness(1.5)' : 'none',
-                  width: '20px',
-                  height: '20px',
+                  width: '40px',
+                  height: '40px',
                 }}
               />
             </IconButton>

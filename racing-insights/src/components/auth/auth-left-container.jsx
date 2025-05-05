@@ -39,7 +39,7 @@ export default function AuthLeftContainer() {
         fontWeight="600"
         sx={{
           width: { xs: '80%', sm: '70%', md: '60%' },
-          color: theme.palette.background.default,
+          color: theme.palette.mode === 'dark' ? '#ffffff' : theme.palette.background.default,
           p: { xs: 4, sm: 6, md: 8 },
           fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' },
           lineHeight: 1.2,

@@ -60,16 +60,16 @@ export default function ChatHistoryList({ title, sessions = [] }) {
               py: 1.5,
               mb: 1,
               borderRadius: '12px',
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'background.paper',
+              backgroundColor: '#EEEEEE',
               '&:hover': { 
-                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'action.hover',
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#E0E0E0',
               },
               cursor: 'pointer',
               border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                 <Avatar 
                   sx={{ 
                     width: 24, 
@@ -85,39 +85,31 @@ export default function ChatHistoryList({ title, sessions = [] }) {
                   <Typography 
                     noWrap 
                     sx={{ 
-                      maxWidth: '160px',
-                      fontSize: 14,
-                      fontWeight: 500
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      flex: 1,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}
                   >
                     {session.chatTitle}
                   </Typography>
                 </Tooltip>
               </Box>
-              <Typography 
-                variant="caption" 
-                color="text.secondary"
-                sx={{ fontSize: 11 }}
-              >
-                {session.time}
-              </Typography>
             </Box>
+            
             <Typography 
               variant="caption" 
               color="text.secondary"
               sx={{ 
-                fontSize: 11, 
                 display: 'block',
-                lineHeight: 1.3,
-                mt: 0.5,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
+                mb: 0.5,
+                ml: 4,
+                fontSize: 11,
+                fontWeight: 400 
               }}
             >
-              {getMessagePreview(session.query)}
+              {session.time}
             </Typography>
           </Paper>
         ))
