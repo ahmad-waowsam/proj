@@ -602,24 +602,6 @@ export default function ChatWindow({ isNewChat = false }) {
               maxWidth: "800px", // Maximum width to maintain readability
             }}
           >
-            {/* Microphone icon */}
-            <IconButton
-              sx={{
-                mr: 1,
-                color: "text.secondary",
-                "&:hover": {
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                },
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 14C13.66 14 15 12.66 15 11V5C15 3.34 13.66 2 12 2C10.34 2 9 3.34 9 5V11C9 12.66 10.34 14 12 14Z" 
-                  fill={theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.6)"} />
-                <path d="M17 11C17 14.31 14.31 17 11 17V20H13V23H11C9.9 23 9 22.1 9 21V20C6.24 20 4 17.76 4 15H6C6 16.66 7.34 18 9 18H11C13.76 18 16 15.76 16 13H18C18 13.7 17.89 14.37 17.69 15C17.5 15.6 17.2 16.17 16.84 16.67C16.45 17.2 15.96 17.65 15.4 18" 
-                  fill={theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.6)"} />
-              </svg>
-            </IconButton>
-            
             <InputBase
               inputRef={inputRef}
               multiline
