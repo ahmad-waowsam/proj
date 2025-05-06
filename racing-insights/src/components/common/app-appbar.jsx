@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from "react";
 import AppBar from "@mui/material/AppBar";
-import { Box, Typography, IconButton, useMediaQuery, useTheme, Menu, MenuItem, ListItemIcon, Divider, Tooltip, Avatar, Badge, Button } from "@mui/material";
+import { Box, Typography, IconButton, useMediaQuery, useTheme, Menu, MenuItem, ListItemIcon, Divider, Tooltip, Avatar, Badge } from "@mui/material";
 import ChatIcon from "../../assets/icons/chat.svg";
 import UserProfile from "../../assets/images/dummyUserProfile.jpg";
 import { ThemeContext } from "../../constants/ThemeContext";
@@ -11,7 +11,6 @@ import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
-import EmailIcon from '@mui/icons-material/Email';
 
 export default function AppAppBar() {
   const { mode } = useContext(ThemeContext);
@@ -135,7 +134,8 @@ export default function AppAppBar() {
   
   const handleViewProfile = () => {
     handleUserMenuClose();
-    // Use the custom event to open the profile modal without navigation
+    // Implemented as a modal in the current page instead of navigation
+    // This will trigger the profile modal to open
     window.dispatchEvent(new CustomEvent('open-profile-modal', { 
       detail: { userData: currentUser } 
     }));
@@ -146,10 +146,10 @@ export default function AppAppBar() {
       <AppBar
         sx={{
           p: { xs: 2, sm: 3 },
-          bgcolor: "background.default",
+          backgroundColor: "background.default",
           boxShadow: "none",
           borderBottom: 1,
-          borderColor: "divider",
+          borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : "secondary.main",
         }}
       >
         <Box
@@ -214,23 +214,6 @@ export default function AppAppBar() {
             
             {/* Theme Toggle */}
             <ThemeToggle />
-            
-            {/* Logout Button - Added for direct access */}
-            {isLoggedIn && (
-              <Button
-                variant="outlined"
-                color="primary"
-                size="small"
-                startIcon={<ExitToAppIcon />}
-                onClick={handleLogout}
-                sx={{ 
-                  display: { xs: 'none', sm: 'flex' },
-                  borderRadius: 2
-                }}
-              >
-                Logout
-              </Button>
-            )}
             
             {/* User Profile Avatar */}
             <Tooltip title={isLoggedIn ? "Your profile" : "Sign in"}>
@@ -333,7 +316,7 @@ export default function AppAppBar() {
       >
         {currentUser && (
           <Box sx={{ px: 2, py: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
               <Avatar
                 alt={currentUser.username || "User"}
                 src={UserProfile}
@@ -353,35 +336,16 @@ export default function AppAppBar() {
                 <Typography variant="subtitle1" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
                   {currentUser.username || "User"}
                 </Typography>
-              </Box>
-            </Box>
-            
-            {/* Enhanced Profile Details */}
-            <Box sx={{ 
-              mb: 2, 
-              p: 1.5, 
-              borderRadius: 1, 
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)'
-            }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                <EmailIcon fontSize="small" sx={{ color: 'text.secondary', mr: 1 }} />
-                <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
-                  {currentUser.email || "No email provided"}
-                </Typography>
-              </Box>
-              
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <PersonOutlineOutlinedIcon fontSize="small" sx={{ color: 'text.secondary', mr: 1 }} />
-                <Typography variant="body2" color="text.secondary">
-                  {currentUser.username || "Username not set"}
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', mt: 0.5 }}>
+                  {currentUser.email || localStorage.getItem('user_email') || ""}
                 </Typography>
               </Box>
             </Box>
-
             <Typography 
               variant="caption" 
               component="div" 
               sx={{ 
+                mt: 1, 
                 color: theme.palette.success.main,
                 display: 'flex',
                 alignItems: 'center' 
@@ -401,16 +365,16 @@ export default function AppAppBar() {
             </Typography>
           </Box>
         )}
-        <Divider sx={{ borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }} />
+        <Divider />
         <MenuItem onClick={handleViewProfile}>
           <ListItemIcon>
             <AccountCircleOutlinedIcon fontSize="small" />
           </ListItemIcon>
           View Profile
         </MenuItem>
-        <MenuItem onClick={handleLogout} sx={{ color: theme.palette.error.main }}>
+        <MenuItem onClick={handleLogout}>
           <ListItemIcon>
-            <ExitToAppIcon fontSize="small" color="error" />
+            <ExitToAppIcon fontSize="small" />
           </ListItemIcon>
           Logout
         </MenuItem>
@@ -423,6 +387,9 @@ export default function AppAppBar() {
 function NavLink({ href, icon, text }) {
   const theme = useTheme();
   const navigate = useNavigate();
+  
+  // Updated SVG chat icon - black and slightly modified design
+  const blackChatIcon = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${theme.palette.mode === 'dark' ? 'white' : 'black'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>`;
   
   return (
     <Box
@@ -440,14 +407,25 @@ function NavLink({ href, icon, text }) {
         cursor: "pointer",
       }}
     >
-      <img
-        src={icon}
-        alt=""
-        style={{ 
-          height: "20px",
-          filter: theme.palette.mode === 'dark' ? 'brightness(10)' : 'none'
-        }}
-      />
+      {text === "Chat" ? (
+        <img
+          src={blackChatIcon}
+          alt=""
+          style={{ 
+            height: "20px",
+            width: "20px"
+          }}
+        />
+      ) : (
+        <img
+          src={icon}
+          alt=""
+          style={{ 
+            height: "20px",
+            filter: theme.palette.mode === 'dark' ? 'brightness(10)' : 'none'
+          }}
+        />
+      )}
       <Box sx={{ mt: "3px", ml: 0.5 }}>
         <Typography variant="body2">{text}</Typography>
       </Box>

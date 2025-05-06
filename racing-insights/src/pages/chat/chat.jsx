@@ -90,31 +90,20 @@ export default function Chat() {
           <ChatDrawer onNewChat={handleNewChat} />
         </Box>
         
-        {/* Chat window container - properly centered between drawer and right edge */}
+        {/* Chat window container - with zero gap and full space utilization */}
         <Box
           sx={{
             flexGrow: 1,
             display: "flex",
             position: "relative",
-            width: isMobile ? "100%" : "calc(100% - 280px)",
-            marginLeft: isMobile ? 0 : (drawerOpen ? "280px" : 0),
+            width: isMobile ? "100%" : "calc(100% - 280px)", 
+            marginLeft: isMobile ? 0 : 0, // Changed to 0 to avoid double offset
             transition: "margin-left 0.3s ease-in-out",
-            padding: { xs: 0, md: '0 24px' }, // Add horizontal padding
-            justifyContent: "flex-start", // Align to left edge instead of center
-            alignItems: "center",
+            padding: 0,
+            overflow: "hidden",
           }}
         >
-          <Box
-            sx={{
-              width: "100%",
-              maxWidth: "1200px", // Limit maximum width
-              marginLeft: "auto",
-              marginRight: "auto",
-              height: "100%",
-            }}
-          >
-            <ChatWindow key={chatKey} isNewChat={isNewChat} />
-          </Box>
+          <ChatWindow key={chatKey} isNewChat={isNewChat} />
         </Box>
       </Box>
     </Box>
