@@ -1,11 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import AppAppBar from "../../components/common/app-appbar";
 import ChatDrawer from "../../components/chat/chat-drawer";
 import ProfileModal from "../../components/profile/profile-modal";
-import { Box, IconButton, useTheme, useMediaQuery } from "@mui/material";
+import { Box, useTheme, useMediaQuery } from "@mui/material";
 import ChatWindow from "../../components/chat/chat-window";
-import MenuIcon from "@mui/icons-material/Menu";
-import CloseIcon from "@mui/icons-material/Close";
 
 export default function Chat() {
   const theme = useTheme();
@@ -14,97 +12,122 @@ export default function Chat() {
   const [chatKey, setChatKey] = useState(0);
   const [isNewChat, setIsNewChat] = useState(false);
 
-  const handleDrawerToggle = () => {
-    setDrawerOpen(!drawerOpen);
-  };
+  // Handle drawer toggle via callback to pass to AppBar
+  const handleDrawerToggle = useCallback(() => {
+    setDrawerOpen(prev => !prev);
+  }, []);
+
+  // Set drawer state based on screen size when it changes
+  useEffect(() => {
+    setDrawerOpen(!isMobile);
+  }, [isMobile]);
+
+  // Close drawer on mobile when a history item is clicked
+  useEffect(() => {
+    const closeDrawer = () => {
+      if (isMobile) {
+        setDrawerOpen(false);
+      }
+    };
+    
+    window.addEventListener('close-chat-drawer', closeDrawer);
+    return () => window.removeEventListener('close-chat-drawer', closeDrawer);
+  }, [isMobile]);
 
   const handleNewChat = () => {
     setIsNewChat(true);
     setChatKey(prevKey => prevKey + 1);
+    
     // Reset isNewChat after a brief delay to ensure it's processed
     setTimeout(() => setIsNewChat(false), 100);
+    
+    // Close drawer on mobile when creating a new chat
+    if (isMobile) {
+      setDrawerOpen(false);
+    }
   };
 
   return (
     <Box
       sx={{
-        backgroundColor: "background.default",
         height: "100vh",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
+        bgcolor: "background.default",
       }}
     >
-      <AppAppBar />
+      {/* AppBar with drawer toggle function */}
+      <AppAppBar toggleDrawer={handleDrawerToggle} drawerOpen={drawerOpen} />
+      
+      {/* Profile Modal - loaded but hidden until triggered */}
       <ProfileModal />
       
+      {/* Main content area with chat drawer and window */}
       <Box
         sx={{
           display: "flex",
           flexGrow: 1,
-          height: "calc(100vh - 72px)",
-          overflow: "hidden",
-          pt: "72px",
+          height: `calc(100vh - 64px)`,
+          pt: "64px",
           position: "relative",
+          width: "100%",
         }}
       >
-        {/* Mobile menu toggle button */}
-        {isMobile && (
-          <IconButton
-            onClick={handleDrawerToggle}
-            sx={{
-              position: "fixed",
-              left: drawerOpen ? "auto" : "16px",
-              right: drawerOpen ? "16px" : "auto",
-              top: "84px",
-              zIndex: 1300,
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-              boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.1)",
-              width: 36,
-              height: 36,
-              "&:hover": {
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
-              },
-            }}
-          >
-            {drawerOpen ? <CloseIcon fontSize="small" /> : <MenuIcon fontSize="small" />}
-          </IconButton>
-        )}
-        
-        {/* Chat drawer - slide in/out on mobile */}
+        {/* Left Pane: Chat Drawer */}
         <Box
+          component="aside"
           sx={{
-            position: isMobile ? "fixed" : "static",
-            left: 0,
-            top: isMobile ? 72 : 0,
-            height: "calc(100vh - 72px)",
-            width: isMobile ? "85%" : "280px",
-            maxWidth: isMobile ? "300px" : "none",
-            transform: isMobile ? `translateX(${drawerOpen ? "0%" : "-100%"})` : "none",
-            transition: "transform 0.3s ease-in-out",
-            zIndex: 1200,
-            boxShadow: isMobile ? "4px 0px 10px rgba(0, 0, 0, 0.1)" : "none",
-            flexShrink: 0,
+            position: isMobile ? "fixed" : "relative",
+            zIndex: isMobile ? theme.zIndex.drawer : 0,
+            width: isMobile ? "85%" : 320,
+            maxWidth: isMobile ? 320 : "none",
+            height: "100%",
+            transform: isMobile ? 
+              `translateX(${drawerOpen ? "0%" : "-100%"})` : 
+              "none",
+            transition: "transform 0.3s ease",
+            borderRight: `1px solid ${theme.palette.divider}`,
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(18, 18, 18, 0.95)' : 'background.paper',
+            boxShadow: isMobile ? 'var(--shadow-md)' : 'none',
           }}
         >
           <ChatDrawer onNewChat={handleNewChat} />
         </Box>
-        
-        {/* Chat window container - with zero gap and full space utilization */}
+
+        {/* Right Pane: Chat Window */}
         <Box
+          component="main"
+          role="main"
+          aria-label="Chat messages"
           sx={{
             flexGrow: 1,
             display: "flex",
             position: "relative",
-            width: isMobile ? "100%" : "calc(100% - 280px)", 
-            marginLeft: isMobile ? 0 : 0, // Changed to 0 to avoid double offset
-            transition: "margin-left 0.3s ease-in-out",
-            padding: 0,
-            overflow: "hidden",
+            height: "100%",
+            width: isMobile ? "100%" : `calc(100% - 320px)`,
+            transition: "width 0.3s ease, margin-left 0.3s ease",
           }}
         >
           <ChatWindow key={chatKey} isNewChat={isNewChat} />
         </Box>
+        
+        {/* Backdrop overlay when drawer is open on mobile */}
+        {isMobile && drawerOpen && (
+          <Box
+            onClick={handleDrawerToggle}
+            sx={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              bgcolor: "rgba(0, 0, 0, 0.5)",
+              zIndex: theme.zIndex.drawer - 1,
+              transition: "opacity 0.3s ease",
+            }}
+          />
+        )}
       </Box>
     </Box>
   );

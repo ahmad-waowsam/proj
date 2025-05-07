@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography, useTheme, InputBase, IconButton, Collapse, CircularProgress } from "@mui/material";
-import AppButton from "../common/app-button";
+import { 
+  Box, 
+  Typography, 
+  useTheme, 
+  InputBase, 
+  IconButton, 
+  Collapse, 
+  CircularProgress,
+  Button
+} from "@mui/material";
 import ChatFilledIcon from "../../assets/icons/chat-filled.svg";
 import ChatHistoryList from "./chat-history-list";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
+import AddIcon from "@mui/icons-material/Add";
+import HistoryIcon from '@mui/icons-material/History';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline'; // Replacing the missing SVG with Material UI icon
 import { getChatHistory } from "../../api/chat";
 
 export default function ChatDrawer({ onNewChat }) {
@@ -49,21 +60,16 @@ export default function ChatDrawer({ onNewChat }) {
       // Call the API with explicit user key
       const response = await getChatHistory(null, userKey);
       
-      console.log("Chat History API Response:", response);
-      
       // Check if we have history data in the expected format
       if (response && Array.isArray(response) && response.length > 0) {
         // Process the history data and categorize it
         const categorizedHistory = categorizeChatHistory(response);
-        console.log("Categorized History:", categorizedHistory);
         setChatHistory(categorizedHistory);
       } else if (response && response.history && Array.isArray(response.history) && response.history.length > 0) {
         // Handle API response with history property
         const categorizedHistory = categorizeChatHistory(response.history);
-        console.log("Categorized History (from history property):", categorizedHistory);
         setChatHistory(categorizedHistory);
       } else {
-        console.log("No chat history found in the response");
         setChatHistory({});
       }
     } catch (err) {
@@ -81,11 +87,8 @@ export default function ChatDrawer({ onNewChat }) {
   // Categorize chat history into TODAY, YESTERDAY, and PREVIOUS
   const categorizeChatHistory = (history) => {
     if (!Array.isArray(history) || history.length === 0) {
-      console.log("No history data to categorize or invalid format");
       return {};
     }
-
-    console.log("Starting categorization of", history.length, "history items");
     
     const today = new Date();
     const yesterday = new Date(today);
@@ -104,11 +107,8 @@ export default function ChatDrawer({ onNewChat }) {
     
     history.forEach((chat, index) => {
       try {
-        console.log(`Processing chat item ${index}:`, chat);
-        
         // Check if the chat object has the required properties
         if (!chat || !chat.created_at || !chat.query) {
-          console.warn(`Chat item ${index} is missing required properties:`, chat);
           return; // Skip this item
         }
         
@@ -118,11 +118,9 @@ export default function ChatDrawer({ onNewChat }) {
           chatDate = new Date(chat.created_at);
           // Check if date is valid
           if (isNaN(chatDate.getTime())) {
-            console.warn(`Invalid date format for chat ${index}:`, chat.created_at);
             chatDate = new Date(); // Use current date as fallback
           }
         } catch (e) {
-          console.error(`Error parsing date for chat ${index}:`, e);
           chatDate = new Date(); // Use current date as fallback
         }
         
@@ -158,7 +156,6 @@ export default function ChatDrawer({ onNewChat }) {
           categorized.PREVIOUS.push(chatEntry);
         }
       } catch (error) {
-        console.error(`Error processing chat item ${index}:`, error, chat);
         // Continue with the next item
       }
     });
@@ -167,8 +164,6 @@ export default function ChatDrawer({ onNewChat }) {
     Object.keys(categorized).forEach(key => {
       if (categorized[key].length === 0) {
         delete categorized[key];
-      } else {
-        console.log(`${key} category has ${categorized[key].length} items`);
       }
     });
     
@@ -190,6 +185,7 @@ export default function ChatDrawer({ onNewChat }) {
     return acc;
   }, {});
 
+  // Toggle search visibility
   const toggleSearch = () => {
     setShowSearch(!showSearch);
     if (showSearch) {
@@ -197,84 +193,144 @@ export default function ChatDrawer({ onNewChat }) {
     }
   };
 
+  // Clear search query
+  const handleClearSearch = () => {
+    setSearchQuery('');
+  };
+
+  // Search input handler
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
   return (
     <Box
       sx={{
         width: "100%",
         height: "100%",
-        backgroundColor: theme.palette.mode === 'dark' ? '#0a0a0a' : 'white',
-        border: `1px solid`,
-        borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'secondary.main',
-        borderRadius: 3,
         display: "flex",
         flexDirection: "column",
+        bgcolor: "background.paper",
         overflow: "hidden",
       }}
     >
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-          <AppButton 
-            onClick={onNewChat}
-            sx={{ 
-              flex: 1,
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(239, 189, 147, 0.2)' : theme.palette.primary.main,
-              '&:hover': {
-                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(239, 189, 147, 0.3)' : theme.palette.primary.dark,
-              }
-            }}
-          >
-            <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-              <img 
-                src={ChatFilledIcon} 
-                alt="New Chat"
-                style={{ 
-                  filter: theme.palette.mode === 'dark' ? 'brightness(10)' : 'none'
-                }} 
-              />
-              <Typography sx={{ fontWeight: 500 }}>New Chat</Typography>
-            </Box>
-          </AppButton>
-          
-          <IconButton 
-            onClick={toggleSearch}
-            sx={{
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : theme.palette.secondary.main,
-              borderRadius: 2,
-              width: 40,
-              height: 40,
-              '&:hover': {
-                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#e0e0e0',
-              }
-            }}
-          >
-            {showSearch ? <CloseIcon fontSize="small" /> : <SearchIcon fontSize="small" />}
-          </IconButton>
-        </Box>
+      {/* Header with title and action buttons */}
+      <Box 
+        sx={{ 
+          px: 3, 
+          pt: 2.5, 
+          pb: 2,
+          display: "flex", 
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: "1px solid",
+          borderColor: "divider"
+        }}
+      >
+        <Typography 
+          variant="h6" 
+          sx={{ fontWeight: 600, fontSize: "1.125rem" }}
+        >
+          Chat History
+        </Typography>
+      </Box>
+      
+      {/* New Chat and Search Controls */}
+      <Box sx={{ p: 3, pb: 2 }}>
+        <Button
+          variant="contained"
+          fullWidth
+          onClick={onNewChat}
+          startIcon={<AddIcon />}
+          size="large"
+          sx={{
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            py: 1.25,
+            mb: 2,
+            fontWeight: 500,
+            '&:hover': {
+              bgcolor: "primary.dark",
+            },
+            borderRadius: 2,
+          }}
+        >
+          New Chat
+        </Button>
         
-        <Collapse in={showSearch} timeout="auto">
-          <InputBase
-            placeholder="Search chats..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            fullWidth
+        <Box sx={{ position: 'relative' }}>
+          <Box
             sx={{
-              mb: 2,
-              px: 1.5,
-              py: 1,
+              display: 'flex',
+              alignItems: 'center',
+              position: 'relative',
+              width: '100%',
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+              borderRadius: 3,
+              px: 2,
+              py: showSearch ? 1.25 : 1.25,
+              gap: 1,
+              cursor: searchQuery ? 'text' : 'pointer',
               border: '1px solid',
-              borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'divider',
-              borderRadius: '12px',
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'background.paper',
-              '& input': {
-                color: 'text.primary',
-              },
-              '& input::placeholder': {
-                color: 'text.secondary',
-                opacity: 0.7,
+              borderColor: 'divider',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
               },
             }}
-          />
-        </Collapse>
+            onClick={() => !showSearch && toggleSearch()}
+          >
+            <SearchIcon fontSize="small" color="action" />
+            
+            <InputBase
+              placeholder="Search chats..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              fullWidth
+              sx={{
+                fontSize: '0.95rem',
+                '& input': {
+                  padding: 0,
+                  transition: 'opacity 0.2s ease',
+                  opacity: showSearch ? 1 : 0,
+                },
+                visibility: showSearch ? 'visible' : 'hidden',
+                transition: 'all 0.2s ease',
+              }}
+            />
+            
+            {!showSearch && !searchQuery && (
+              <Typography
+                sx={{
+                  color: 'text.secondary',
+                  position: 'absolute',
+                  left: 40,
+                  pointerEvents: 'none',
+                  fontSize: '0.95rem',
+                }}
+              >
+                Search chats...
+              </Typography>
+            )}
+            
+            {(showSearch || searchQuery) && (
+              <IconButton 
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (searchQuery) {
+                    handleClearSearch();
+                  } else {
+                    toggleSearch();
+                  }
+                }}
+                sx={{ p: 0.5 }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            )}
+          </Box>
+        </Box>
       </Box>
 
       {/* Scrollable container for chat history lists */}
@@ -282,7 +338,8 @@ export default function ChatDrawer({ onNewChat }) {
         sx={{
           flex: 1,
           overflowY: "auto",
-          backgroundColor: "inherit", // Use the same background as the parent
+          px: 0,
+          py: 0,
           "&::-webkit-scrollbar": {
             width: "6px",
           },
@@ -290,31 +347,63 @@ export default function ChatDrawer({ onNewChat }) {
             background: "transparent",
           },
           "&::-webkit-scrollbar-thumb": {
-            background: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : "chatTitle.main",
+            background: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : "rgba(0, 0, 0, 0.2)",
             borderRadius: "8px",
           },
         }}
+        role="navigation"
+        aria-label="Chat history"
       >
         {isLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <CircularProgress size={24} />
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+            <CircularProgress size={32} />
           </Box>
         ) : error ? (
           <Box sx={{ p: 3, textAlign: 'center' }}>
-            <Typography color="error">{error}</Typography>
-            <Typography 
-              color="primary" 
-              sx={{ mt: 1, cursor: 'pointer', textDecoration: 'underline' }} 
+            <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>
+            <Button 
+              variant="outlined" 
+              size="small" 
               onClick={fetchChatHistory}
+              sx={{ mt: 1 }}
             >
               Retry
-            </Typography>
+            </Button>
           </Box>
         ) : Object.keys(filteredHistory).length === 0 ? (
-          <Box sx={{ p: 3, textAlign: 'center' }}>
-            <Typography color="text.secondary">
-              {searchQuery ? "No chats match your search." : "No chat history found."}
-            </Typography>
+          <Box 
+            sx={{ 
+              p: 3, 
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 'calc(100% - 100px)',
+              opacity: 0.8
+            }}
+          >
+            {searchQuery ? (
+              <>
+                <SearchIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.6 }} />
+                <Typography sx={{ color: 'text.secondary', mb: 1, fontWeight: 500 }}>
+                  No matches found
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Try different search terms
+                </Typography>
+              </>
+            ) : (
+              <>
+                <HistoryIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.6 }} />
+                <Typography sx={{ color: 'text.secondary', mb: 1, fontWeight: 500 }}>
+                  No chat history yet
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Start a new chat to begin
+                </Typography>
+              </>
+            )}
           </Box>
         ) : (
           Object.entries(filteredHistory).map(([period, sessions]) => (

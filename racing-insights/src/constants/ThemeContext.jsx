@@ -1,11 +1,13 @@
 import React, { createContext, useState, useMemo, useEffect } from "react";
 import { ThemeProvider } from "@mui/material/styles";
-import { lightTheme, darkTheme } from "./theme";
+import { lightTheme, darkTheme, applyThemeProperties } from "./theme";
 
 export const ThemeContext = createContext();
 
 export const ThemeProviderWrapper = ({ children }) => {
-  const [mode, setMode] = useState("light");
+  const [mode, setMode] = useState(
+    localStorage.getItem("theme") || "light"
+  );
 
   const theme = useMemo(
     () => (mode === "light" ? lightTheme : darkTheme),
@@ -13,18 +15,21 @@ export const ThemeProviderWrapper = ({ children }) => {
   );
 
   useEffect(() => {
-    // Get the body element
-    const body = document.body;
+    // Store the mode preference
+    localStorage.setItem("theme", mode);
     
-    // Apply theme transition class
+    // Apply mode to HTML element for CSS targeting
+    document.documentElement.setAttribute("data-theme", mode);
+    
+    // Apply CSS custom properties
+    applyThemeProperties(mode);
+    
+    // Apply transition class to body for smooth transitions
+    const body = document.body;
     body.classList.add("theme-transition");
     
-    // Add data-theme attribute for CSS targeting
-    body.setAttribute("data-theme", mode);
-    
-    // Clean up function to remove transition class after theme change completes
+    // Optional: Remove transition class after transition completes
     const transitionEndHandler = () => {
-      // Optional: Remove the transition class after transition completes
       // body.classList.remove("theme-transition");
     };
     

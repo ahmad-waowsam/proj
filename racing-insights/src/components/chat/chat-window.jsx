@@ -1,8 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Box, IconButton, InputBase, Paper, Typography, useTheme, CircularProgress } from "@mui/material";
+import { 
+  Box, 
+  IconButton, 
+  InputBase, 
+  Paper, 
+  Typography, 
+  useTheme, 
+  CircularProgress, 
+  Tooltip, 
+  Button,
+  useMediaQuery
+} from "@mui/material";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
-import SendIcon from "../../assets/icons/send-icon.svg";
-import HandWaveIcon from "../../assets/icons/hand-wave.svg";
+import SendIcon from '@mui/icons-material/Send';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
+import WavingHandIcon from '@mui/icons-material/WavingHand';
 import UserMessage from "./user-message";
 import BotMessage from "./bot-message";
 import { sendChatMessage, getChatHistory } from "../../api/chat";
@@ -12,29 +25,58 @@ const SuggestionButton = ({ text, onClick }) => {
   const theme = useTheme();
 
   return (
-    <Paper
-      elevation={0}
-      onClick={onClick}
+    <Button
+      onClick={() => onClick(text)}
       sx={{
         px: 3,
         py: 1.5,
-        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : "#F8F9FA",
+        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
         borderRadius: "12px",
-        color: theme.palette.text.primary,
+        color: "text.primary",
+        border: '1px solid',
+        borderColor: 'divider',
         fontSize: "14px",
         fontWeight: 500,
         cursor: "pointer",
         "&:hover": {
-          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : "#F0F1F3",
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)',
+          boxShadow: 'var(--shadow-sm)',
         },
-        boxShadow: "none",
-        border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
-        minWidth: '190px',
+        minWidth: '200px',
         textAlign: 'center',
+        whiteSpace: 'nowrap',
       }}
+      variant="text"
     >
       {text}
-    </Paper>
+    </Button>
+  );
+};
+
+// Typing indicator component
+const TypingIndicator = () => {
+  return (
+    <Box 
+      className="typing-indicator"
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        px: 1.5,
+        py: 0.8,
+        bgcolor: theme => theme.palette.mode === 'dark' 
+          ? 'rgba(255, 255, 255, 0.05)' 
+          : 'rgba(0, 0, 0, 0.03)',
+        borderRadius: 2,
+        width: 'fit-content',
+        mb: 1
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+        Racing Insights AI is typing
+        <span>.</span><span>.</span><span>.</span>
+      </Typography>
+    </Box>
   );
 };
 
@@ -44,12 +86,16 @@ export default function ChatWindow({ isNewChat = false }) {
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [threadId, setThreadId] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [textareaRows, setTextareaRows] = useState(1);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const theme = useTheme();
   const params = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   // Add a ref to track if this is the first render (page load)
   const isFirstRender = useRef(true);
@@ -111,8 +157,8 @@ export default function ChatWindow({ isNewChat = false }) {
 
   // Suggestions data - more focused and relevant
   const suggestionRows = [
-    ["Today's Racing Predictions", "2024 Racing Statistics"],
-    ["Recent Winners", "Horse Performance History"]
+    ["Today's Racing Predictions", "Upcoming Race Analysis"],
+    ["Race Results Summary", "Horse Performance Stats"]
   ];
 
   // Load chat history if a thread ID is provided
@@ -280,14 +326,26 @@ export default function ChatWindow({ isNewChat = false }) {
     return formattedConversations;
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (behavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
   // Scroll to bottom when conversations change
   useEffect(() => {
     scrollToBottom();
   }, [conversations]);
+
+  // Handle textarea height adjustment
+  useEffect(() => {
+    if (!message) {
+      setTextareaRows(1);
+      return;
+    }
+    
+    // Count newlines (limited to 5 rows max)
+    const lineCount = (message.match(/\n/g) || []).length + 1;
+    setTextareaRows(Math.min(Math.max(1, lineCount), 5));
+  }, [message]);
 
   const handleSendMessage = async () => {
     if (!message.trim()) return;
@@ -315,42 +373,31 @@ export default function ChatWindow({ isNewChat = false }) {
 
     setConversations([...conversations, userMessage]);
     setMessage("");
+    setTextareaRows(1);
+    
+    // Scroll immediately after user message
+    setTimeout(() => scrollToBottom("instant"), 50);
 
-    // Add loading message to show the bot is responding
-    const loadingMsgId = `bot-${Date.now()}`;
-    const loadingMessage = {
-      id: loadingMsgId,
-      user: "Racing Insights AI",
-      message: "Thinking...",
-      time: new Date(),
-      isUser: false,
-      isLoading: true,
-    };
-
-    setConversations((prevConversations) => [
-      ...prevConversations,
-      loadingMessage,
-    ]);
+    // Start typing indicator
+    setIsTyping(true);
 
     try {
       // Call the API with the current thread ID
       const response = await sendChatMessage(message, currentThreadId);
+      
+      // Remove typing indicator
+      setIsTyping(false);
 
       // Create bot message with the structure expected by the UI components
       const botMessage = {
-        id: loadingMsgId, // Use same ID to replace the loading message
+        id: `bot-${Date.now()}`,
         user: "Racing Insights AI",
         message: response.response,
         time: new Date(),
         isUser: false,
-        isLoading: false,
       };
 
-      setConversations((prevConversations) =>
-        prevConversations.map((msg) =>
-          msg.id === loadingMsgId ? botMessage : msg
-        )
-      );
+      setConversations(prev => [...prev, botMessage]);
 
       // Update URL if needed
       if (!params.threadId || params.threadId !== currentThreadId) {
@@ -361,22 +408,19 @@ export default function ChatWindow({ isNewChat = false }) {
       window.dispatchEvent(new CustomEvent('refresh-chat-history'));
     } catch (error) {
       console.error("Error sending message:", error);
+      setIsTyping(false);
 
       // Replace loading message with error message
       const errorMessage = {
-        id: loadingMsgId, // Use same ID to replace the loading message
+        id: `bot-error-${Date.now()}`,
         user: "Racing Insights AI",
         message: "Sorry, I couldn't process your request. Please try again.",
         time: new Date(),
         isUser: false,
-        isLoading: false,
+        isError: true,
       };
 
-      setConversations((prevConversations) =>
-        prevConversations.map((msg) =>
-          msg.id === loadingMsgId ? errorMessage : msg
-        )
-      );
+      setConversations(prev => [...prev, errorMessage]);
     }
   };
 
@@ -409,255 +453,362 @@ export default function ChatWindow({ isNewChat = false }) {
     });
   };
 
+  // Extract the current chat's title
+  const extractCurrentTitle = () => {
+    if (!conversations.length) return "New Chat";
+    
+    // Find the first user message (should be at index 0)
+    const firstUserMsg = conversations.find(c => c.isUser);
+    if (!firstUserMsg) return "New Chat";
+    
+    // Truncate the message to use as title
+    const title = firstUserMsg.message;
+    return title.length > 28 ? `${title.substring(0, 25)}...` : title;
+  };
+  
+  // Mobile back button handler
+  const handleBack = () => {
+    // Dispatch event to open the drawer on mobile
+    window.dispatchEvent(new CustomEvent('open-chat-drawer'));
+  };
+
   return (
     <Box
       sx={{
         display: "flex",
+        flexDirection: "column",
         width: "100%",
         height: "100%",
+        position: "relative",
+        overflow: "hidden",
+        bgcolor: "background.default",
       }}
     >
-      {/* CHAT PANE */}
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          width: "100%",
-          height: "100%",
-          borderRadius: { xs: 0, md: '12px' },
-          overflow: "hidden",
-          bgcolor: "background.default",
-          border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.06)',
-          boxShadow: theme.palette.mode === 'dark' ? 'none' : '0px 2px 10px rgba(0, 0, 0, 0.05)',
-        }}
-      >
-        {/* Chat Area */}
+      {/* Chat Window Header */}
+      {threadId && conversations.length > 0 && (
         <Box
           sx={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            pt: 2,
-            pb: 2,
+            px: 3,
+            py: 2,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
           }}
         >
-          {isLoading ? (
-            <Box
-              sx={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
+          {isMobile && (
+            <IconButton 
+              onClick={handleBack} 
+              size="small"
+              sx={{ mr: 0.5 }}
             >
-              <CircularProgress
-                size={32}
-                sx={{
-                  color: theme.palette.mode === 'dark' ? theme.palette.primary.light : theme.palette.primary.main,
-                }}
-              />
-              <Typography sx={{ mt: 2, color: "text.secondary" }}>
-                Loading conversation...
-              </Typography>
-            </Box>
-          ) : showWelcome ? (
-            <Box
-              sx={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 4,
-                px: 2,
-              }}
-            >
-              <Box
-                component="img"
-                src={HandWaveIcon}
-                alt="Wave"
-                sx={{
-                  width: 48,
-                  height: 48,
-                  filter: theme.palette.mode === 'dark' ? 'brightness(10)' : 'none',
-                }}
-              />
-              <Typography
-                variant="h5"
-                sx={{
-                  fontSize: "24px",
-                  color: "text.primary",
-                  fontWeight: 500,
-                  textAlign: "center",
-                }}
-              >
-                What can I help you with?
-              </Typography>
+              <KeyboardArrowLeftIcon />
+            </IconButton>
+          )}
+          
+          <Typography 
+            noWrap
+            sx={{ 
+              fontWeight: 600, 
+              fontSize: { xs: '0.95rem', sm: '1.05rem' },
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {extractCurrentTitle()}
+          </Typography>
+        </Box>
+      )}
 
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                  width: "100%",
-                  maxWidth: "600px",
-                }}
-              >
-                {/* Render suggestion rows */}
-                {suggestionRows.map((row, rowIndex) => (
-                  <Box
-                    key={rowIndex}
-                    sx={{
-                      display: "flex",
-                      gap: 2,
-                      justifyContent: "center",
-                      flexWrap: "wrap"
-                    }}
-                  >
-                    {row.map((suggestion, index) => (
-                      <SuggestionButton
-                        key={`${rowIndex}-${index}`}
-                        text={suggestion}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                      />
-                    ))}
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          ) : (
+      {/* Chat Area */}
+      <Box
+        ref={messagesContainerRef}
+        sx={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          overflowY: "auto",
+          px: { xs: 2, sm: 4, md: 8, lg: 16 },
+          py: 3,
+          "&::-webkit-scrollbar": {
+            width: "6px",
+          },
+          "&::-webkit-scrollbar-track": {
+            background: "transparent",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : "rgba(0, 0, 0, 0.2)",
+            borderRadius: "8px",
+          },
+        }}
+      >
+        {isLoading ? (
+          <Box
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: 300,
+            }}
+          >
+            <CircularProgress
+              size={32}
+              sx={{
+                color: "primary.main"
+              }}
+            />
+            <Typography sx={{ mt: 2, color: "text.secondary" }}>
+              Loading conversation...
+            </Typography>
+          </Box>
+        ) : showWelcome ? (
+          <Box
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 4,
+              px: 2,
+              mx: "auto",
+              width: "100%",
+              maxWidth: "800px",
+            }}
+          >
             <Box
               sx={{
-                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 64,
+                height: 64,
+                borderRadius: "50%",
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(239, 189, 147, 0.15)' : 'rgba(239, 189, 147, 0.1)',
+                mb: 1,
+              }}
+            >
+              <WavingHandIcon
+                sx={{
+                  fontSize: 32,
+                  color: "primary.main",
+                }}
+              />
+            </Box>
+            
+            <Typography
+              variant="h5"
+              sx={{
+                fontSize: { xs: "1.5rem", md: "2rem" },
+                color: "text.primary",
+                fontWeight: 600,
+                textAlign: "center",
+              }}
+            >
+              How can I assist with racing insights today?
+            </Typography>
+
+            <Typography
+              sx={{
+                color: "text.secondary",
+                textAlign: "center",
+                maxWidth: "600px",
+                mb: 2,
+              }}
+            >
+              Ask about race predictions, statistics, horse performance, or try one of the examples below.
+            </Typography>
+
+            <Box
+              sx={{
                 display: "flex",
                 flexDirection: "column",
                 gap: 2,
-                p: 2,
-                overflowY: "auto",
-                "&::-webkit-scrollbar": {
-                  width: "6px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: "transparent",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : "#e0e0e0",
-                  borderRadius: "8px",
-                },
+                width: "100%",
+                maxWidth: { xs: "100%", sm: "85%", md: "700px" },
               }}
             >
-              {conversations.map((conv) =>
-                conv.isUser ? (
-                  <UserMessage
-                    key={conv.id}
-                    user={conv.user}
-                    message={conv.message}
-                    time={formatTime(conv.time)}
-                  />
-                ) : (
-                  <BotMessage
-                    key={conv.id}
-                    user={conv.user}
-                    message={conv.message}
-                    time={formatTime(conv.time)}
-                    highlight={conv.highlight}
-                    highlightMessage={conv.highlightMessage}
-                    isLoading={conv.isLoading}
-                  />
-                )
-              )}
-              <div ref={messagesEndRef} />
+              {/* Render suggestion rows */}
+              {suggestionRows.map((row, rowIndex) => (
+                <Box
+                  key={rowIndex}
+                  sx={{
+                    display: "flex",
+                    gap: 2,
+                    justifyContent: "center",
+                    flexWrap: "wrap"
+                  }}
+                >
+                  {row.map((suggestion, index) => (
+                    <SuggestionButton
+                      key={`${rowIndex}-${index}`}
+                      text={suggestion}
+                      onClick={handleSuggestionClick}
+                    />
+                  ))}
+                </Box>
+              ))}
             </Box>
-          )}
-        </Box>
+          </Box>
+        ) : (
+          <>
+            {conversations.map((conv, index) => {
+              // Check if this message is from the same sender as the previous one
+              const prevMessage = index > 0 ? conversations[index - 1] : null;
+              const isConsecutive = prevMessage && prevMessage.isUser === conv.isUser;
+              
+              return conv.isUser ? (
+                <UserMessage
+                  key={conv.id}
+                  user={conv.user}
+                  message={conv.message}
+                  time={formatTime(conv.time)}
+                  isConsecutive={isConsecutive}
+                />
+              ) : (
+                <BotMessage
+                  key={conv.id}
+                  user={conv.user}
+                  message={conv.message}
+                  time={formatTime(conv.time)}
+                  highlight={conv.highlight}
+                  highlightMessage={conv.highlightMessage}
+                  isError={conv.isError}
+                  isConsecutive={isConsecutive}
+                />
+              );
+            })}
+            
+            {/* Typing indicator */}
+            {isTyping && (
+              <Box sx={{ mt: 2, ml: 0.5 }}>
+                <TypingIndicator />
+              </Box>
+            )}
+            
+            {/* Auto-scroll target */}
+            <div ref={messagesEndRef} />
+          </>
+        )}
+      </Box>
 
-        {/* Input Area - Fixed at bottom */}
+      {/* Input Area */}
+      <Box
+        sx={{
+          position: "sticky",
+          bottom: 0,
+          width: "100%",
+          backgroundColor: "background.default",
+          zIndex: 1,
+          py: 2,
+          px: { xs: 2, sm: 4, md: 8, lg: 16 },
+          borderTop: "1px solid",
+          borderColor: "divider",
+        }}
+        className="safe-area-bottom"
+      >
         <Box
           sx={{
-            position: "sticky",
-            bottom: 0,
-            pt: 2,
-            pb: 3,
-            px: 2,
-            backgroundColor: "background.default",
-            borderTop: "1px solid",
-            borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'divider',
-            display: "flex",
-            justifyContent: "center", // Center the input box
+            maxWidth: "800px",
+            mx: "auto",
+            width: "100%",
           }}
         >
           <Paper
             elevation={0}
             sx={{
               display: "flex",
-              alignItems: "center",
-              p: "10px 16px",
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : "#F4F4F4",
+              alignItems: "flex-end",
+              p: 1.5,
+              paddingLeft: 2,
+              backgroundColor: theme.palette.mode === 'dark' 
+                ? 'rgba(255, 255, 255, 0.05)' 
+                : 'rgba(0, 0, 0, 0.03)',
               borderRadius: "12px",
-              boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.05)",
-              border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
-              width: { xs: '100%', sm: '90%', md: '85%', lg: '75%' }, // Responsive width to create space on sides
-              maxWidth: "800px", // Maximum width to maintain readability
+              border: "1px solid",
+              borderColor: "divider",
+              boxShadow: "var(--shadow-sm)",
             }}
           >
             <InputBase
               inputRef={inputRef}
               multiline
-              maxRows={4}
+              maxRows={5}
               sx={{
                 flex: 1,
-                fontSize: "14px",
-                color: theme.palette.text.primary,
-                "& input::placeholder": {
-                  color: theme.palette.text.secondary,
-                  opacity: 0.7,
-                },
+                fontSize: "0.95rem",
+                lineHeight: 1.5,
+                py: 0.5,
                 "& .MuiInputBase-input": {
-                  maxHeight: "100px",
-                  overflow: "auto",
-                }
+                  padding: 0,
+                },
               }}
-              placeholder="Ask about racing insights..."
+              placeholder="Type a message..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyPress}
+              rows={textareaRows}
             />
-            <IconButton
-              type="button"
-              sx={{
-                p: "8px",
-                color: message.trim() ? "primary.main" : "text.disabled",
-                backgroundColor: message.trim()
-                  ? theme.palette.mode === 'dark'
-                    ? 'rgba(239, 189, 147, 0.2)'
-                    : 'rgba(239, 189, 147, 0.1)'
-                  : 'transparent',
-                borderRadius: "8px",
-                "&:hover": {
-                  backgroundColor: message.trim()
-                    ? theme.palette.mode === 'dark'
-                      ? 'rgba(239, 189, 147, 0.3)'
-                      : 'rgba(239, 189, 147, 0.2)'
-                    : 'transparent',
-                },
-              }}
-              aria-label="send"
-              onClick={handleSendMessage}
-              disabled={!message.trim()}
-            >
-              <img
-                src={SendIcon}
-                alt="send"
-                style={{
-                  filter: theme.palette.mode === 'dark' && message.trim() ? 'brightness(1.5)' : 'none',
-                  width: '40px',
-                  height: '40px',
+            
+            <Tooltip title="More options">
+              <IconButton 
+                size="small" 
+                sx={{ 
+                  color: "text.secondary",
+                  mr: 0.5,
                 }}
-              />
-            </IconButton>
+              >
+                <AddCircleOutlineIcon />
+              </IconButton>
+            </Tooltip>
+            
+            <Tooltip title="Send message">
+              <IconButton
+                onClick={handleSendMessage}
+                disabled={!message.trim()}
+                sx={{
+                  ml: 0.5,
+                  color: message.trim() ? "primary.main" : "text.disabled",
+                  bgcolor: message.trim() 
+                    ? theme.palette.mode === 'dark' 
+                      ? 'rgba(239, 189, 147, 0.15)' 
+                      : 'rgba(239, 189, 147, 0.1)'
+                    : 'transparent',
+                  '&:hover': {
+                    bgcolor: message.trim() 
+                      ? theme.palette.mode === 'dark' 
+                        ? 'rgba(239, 189, 147, 0.25)' 
+                        : 'rgba(239, 189, 147, 0.2)'
+                      : 'transparent',
+                  },
+                  transition: 'all 0.2s',
+                }}
+              >
+                <SendIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
           </Paper>
+          
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              mt: 1.5,
+              opacity: 0.8,
+            }}
+          >
+            <Typography 
+              variant="caption" 
+              color="text.secondary"
+              sx={{ fontSize: '0.7rem' }}
+            >
+              Press Enter to send, Shift+Enter for new line
+            </Typography>
+          </Box>
         </Box>
       </Box>
     </Box>

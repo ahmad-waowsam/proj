@@ -1,11 +1,12 @@
 import React from "react";
-import { Box, Typography, Paper, useTheme, Avatar, Tooltip } from "@mui/material";
-import { useNavigate } from "react-router-dom";
-import ChatIcon from '@mui/icons-material/Chat';
+import { Box, Typography, useTheme, Tooltip } from "@mui/material";
+import { useNavigate, useParams } from "react-router-dom";
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 
 export default function ChatHistoryList({ title, sessions = [] }) {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { threadId } = useParams();
   
   const handleChatItemClick = (session) => {
     if (!session.threadId) {
@@ -23,97 +24,142 @@ export default function ChatHistoryList({ title, sessions = [] }) {
     // Dispatch an event to close the drawer on mobile
     window.dispatchEvent(new CustomEvent('close-chat-drawer'));
   };
-  
-  // Function to extract message preview
-  const getMessagePreview = (message, maxLength = 60) => {
-    if (!message) return "No message content";
-    return message.length > maxLength ? `${message.substring(0, maxLength)}...` : message;
-  };
-  
+
   return (
-    <Box sx={{ px: 2, pb: 2 }}>
+    <Box sx={{ mb: 2 }}>
+      {/* Section Title */}
       <Typography 
         variant="subtitle2" 
-        color="text.secondary" 
         sx={{ 
-          mb: 1.5,
-          fontSize: 12,
-          fontWeight: 500,
-          textTransform: 'uppercase'
+          px: 3,
+          py: 1.5,
+          color: "text.secondary",
+          fontSize: "0.75rem",
+          fontWeight: 600,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
         }}
       >
         {title}
       </Typography>
       
-      {sessions.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 1 }}>
-          No chats found.
-        </Typography>
-      ) : (
-        sessions.map((session, i) => (
-          <Paper
-            key={session.id || i}
-            elevation={0}
-            onClick={() => handleChatItemClick(session)}
-            sx={{
-              px: 2, 
-              py: 1.5,
-              mb: 1,
-              borderRadius: '12px',
-              backgroundColor: '#EEEEEE',
-              '&:hover': { 
-                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#E0E0E0',
-              },
-              cursor: 'pointer',
-              border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                <Avatar 
-                  sx={{ 
-                    width: 24, 
-                    height: 24, 
-                    bgcolor: theme.palette.primary.main,
-                    opacity: 0.8,
-                    fontSize: '0.8rem'
+      {/* Chat History Items */}
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        // Remove any extra space between items
+        '& > div + div': {
+          mt: 0.5, // Consistent small gap between items
+        }
+      }}>
+        {sessions.map((session) => {
+          const isSelected = session.threadId === threadId;
+          
+          return (
+            <Box
+              key={session.id}
+              onClick={() => handleChatItemClick(session)}
+              sx={{
+                position: "relative",
+                px: 3,
+                py: 1.5, // More consistent padding
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                borderLeft: isSelected ? '3px solid' : '3px solid transparent',
+                borderLeftColor: isSelected ? 'primary.main' : 'transparent',
+                bgcolor: isSelected 
+                  ? theme.palette.mode === 'dark' 
+                    ? 'rgba(255, 255, 255, 0.05)' 
+                    : 'rgba(0, 0, 0, 0.03)'
+                  : 'transparent',
+                "&:hover": {
+                  bgcolor: theme.palette.mode === 'dark' 
+                    ? 'rgba(255, 255, 255, 0.05)' 
+                    : 'rgba(0, 0, 0, 0.03)',
+                },
+                "&:focus-visible": {
+                  outline: "2px solid",
+                  outlineColor: "primary.main",
+                  outlineOffset: "-2px",
+                },
+              }}
+              component="button"
+              tabIndex={0}
+              aria-selected={isSelected}
+              role="option"
+            >
+              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+                {/* Chat Icon */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    width: 32,
+                    height: 32,
+                    borderRadius: 1.5,
+                    bgcolor: isSelected
+                      ? 'primary.main'
+                      : theme.palette.mode === 'dark'
+                      ? 'rgba(255, 255, 255, 0.05)'
+                      : 'rgba(0, 0, 0, 0.04)',
+                    color: isSelected 
+                      ? theme.palette.mode === 'dark' 
+                        ? 'primary.contrastText' 
+                        : 'white'
+                      : 'text.secondary',
+                    transition: "all 0.2s ease",
+                    flexShrink: 0,
                   }}
                 >
-                  <ChatIcon sx={{ fontSize: '16px' }} />
-                </Avatar>
-                <Tooltip title={session.chatTitle} placement="top">
-                  <Typography 
-                    noWrap 
+                  <ChatBubbleOutlineIcon 
+                    sx={{ fontSize: 18, opacity: isSelected ? 1 : 0.7 }}
+                  />
+                </Box>
+
+                {/* Chat Text Content */}
+                <Box sx={{ flex: 1, overflow: "hidden" }}>
+                  <Tooltip title={session.chatTitle} placement="top" arrow>
+                    <Typography
+                      noWrap
+                      sx={{
+                        fontSize: "0.9rem",
+                        fontWeight: isSelected ? 600 : 500,
+                        color: isSelected 
+                          ? "text.primary" 
+                          : "text.secondary",
+                        transition: "color 0.2s ease",
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {session.chatTitle}
+                    </Typography>
+                  </Tooltip>
+                  
+                  <Box 
                     sx={{ 
-                      fontSize: '0.9rem',
-                      fontWeight: 500,
-                      flex: 1,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      mt: 0.5,
                     }}
                   >
-                    {session.chatTitle}
-                  </Typography>
-                </Tooltip>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "text.tertiary",
+                        fontSize: "0.75rem",
+                      }}
+                    >
+                      {session.time}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
             </Box>
-            
-            <Typography 
-              variant="caption" 
-              color="text.secondary"
-              sx={{ 
-                display: 'block',
-                mb: 0.5,
-                ml: 4,
-                fontSize: 11,
-                fontWeight: 400 
-              }}
-            >
-              {session.time}
-            </Typography>
-          </Paper>
-        ))
-      )}
+          );
+        })}
+      </Box>
     </Box>
   );
 }
