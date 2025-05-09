@@ -65,8 +65,13 @@ export default function ChatHistoryList({ title, sessions = [] }) {
                 py: 1.5, // More consistent padding
                 cursor: "pointer",
                 transition: "all 0.15s ease",
+                // Use left indicator instead of border
                 borderLeft: isSelected ? '3px solid' : '3px solid transparent',
                 borderLeftColor: isSelected ? 'primary.main' : 'transparent',
+                // No outline or border on other sides
+                border: 'none',
+                outline: 'none',
+                boxShadow: 'none',
                 bgcolor: isSelected 
                   ? theme.palette.mode === 'dark' 
                     ? 'rgba(255, 255, 255, 0.05)' 
@@ -77,8 +82,11 @@ export default function ChatHistoryList({ title, sessions = [] }) {
                     ? 'rgba(255, 255, 255, 0.05)' 
                     : 'rgba(0, 0, 0, 0.03)',
                 },
+                "&:focus": {
+                  outline: "none",
+                },
                 "&:focus-visible": {
-                  outline: "none", // Removed the outline
+                  outline: "none",
                 },
               }}
               component="button"
