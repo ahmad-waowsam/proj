@@ -14,15 +14,17 @@ import {
   TextField,
   CircularProgress,
   useTheme,
-  Chip
+  Chip,
+  Alert,
+  Skeleton
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
 import EmailIcon from '@mui/icons-material/Email';
-import PersonIcon from '@mui/icons-material/Person';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import UserProfile from '../../assets/images/dummyUserProfile.jpg';
-import { getCurrentUser, updateUserProfile } from '../../api/chat';
+import { getCurrentUser, updateUserProfile, getChatHistory } from '../../api/chat';
 
 const ProfileModal = () => {
   const theme = useTheme();
@@ -30,15 +32,23 @@ const ProfileModal = () => {
   const [userData, setUserData] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [chatStats, setChatStats] = useState({
+    totalChats: 0,
+    activeDays: 0
+  });
   const [formData, setFormData] = useState({
     username: '',
     email: '',
   });
+  const [usernameError, setUsernameError] = useState('');
 
   // Listen for the custom event to open the modal
   useEffect(() => {
     const handleOpenModal = (event) => {
       setOpen(true);
+      setError(null);
+      setUsernameError('');
       // If user data is passed with the event, use it
       if (event.detail?.userData) {
         setUserData(event.detail.userData);
@@ -47,6 +57,8 @@ const ProfileModal = () => {
           email: event.detail.userData.email || '',
         });
         setIsLoading(false);
+        // Load chat statistics even when user data is provided via event
+        loadChatStats();
       } else {
         // Otherwise load from API
         loadUserData();
@@ -60,22 +72,85 @@ const ProfileModal = () => {
   const handleClose = () => {
     setOpen(false);
     setIsEditMode(false);
+    setError(null);
+    setUsernameError('');
+  };
+
+  // Load user's chat history and calculate statistics
+  const loadChatStats = async () => {
+    try {
+      // Get user email from localStorage for user-specific history
+      let userKey = null;
+      const userData = localStorage.getItem('user_data');
+      if (userData) {
+        const parsedData = JSON.parse(userData);
+        userKey = parsedData.email;
+      } else {
+        userKey = localStorage.getItem("user_email");
+      }
+      
+      // If no user key is found, we can't load chat stats
+      if (!userKey) {
+        console.warn("No user key found for loading chat stats");
+        return;
+      }
+      
+      // Get all chat history for this user (with higher limit to get more accurate stats)
+      const chatHistory = await getChatHistory(null, userKey, 100);
+      
+      if (Array.isArray(chatHistory) && chatHistory.length > 0) {
+        // Count total chats
+        const totalChats = chatHistory.length;
+        
+        // Count unique active days
+        const uniqueDays = new Set();
+        chatHistory.forEach(chat => {
+          if (chat.created_at) {
+            try {
+              const date = new Date(chat.created_at);
+              uniqueDays.add(date.toDateString());
+            } catch (e) {
+              // Skip invalid dates
+            }
+          }
+        });
+        
+        setChatStats({
+          totalChats: totalChats,
+          activeDays: uniqueDays.size
+        });
+      }
+    } catch (error) {
+      console.error("Error loading chat statistics:", error);
+      // Don't set modal error - this is non-critical functionality
+    }
   };
 
   const loadUserData = async () => {
     setIsLoading(true);
+    setError(null);
+    setUsernameError('');
     try {
       // Try to get user from API
       const user = await getCurrentUser();
+      
+      if (!user) {
+        throw new Error('Failed to load user data. Server returned empty response.');
+      }
+      
       setUserData(user);
       setFormData({
         username: user.username || '',
         email: user.email || '',
       });
+      
+      // Load chat statistics after user data is loaded
+      loadChatStats();
     } catch (error) {
       console.error('Error loading user data:', error);
+      setError('Unable to load profile data. Please try again.');
       
-      // If API fails, try to load from localStorage
+      // Try to load from localStorage as fallback
       const cachedUserData = localStorage.getItem('user_data');
       if (cachedUserData) {
         try {
@@ -85,8 +160,13 @@ const ProfileModal = () => {
             username: parsedData.username || '',
             email: parsedData.email || '',
           });
+          setError('Using cached profile data. Refresh to try loading latest data.');
+          
+          // Load chat statistics based on cached user data
+          loadChatStats();
         } catch (e) {
           console.error('Error parsing user data from localStorage:', e);
+          // Keep the original error message
         }
       }
     } finally {
@@ -102,6 +182,7 @@ const ProfileModal = () => {
         username: userData?.username || '',
         email: userData?.email || '',
       });
+      setUsernameError('');
     }
     setIsEditMode(!isEditMode);
   };
@@ -113,47 +194,84 @@ const ProfileModal = () => {
       ...formData,
       [name]: value,
     });
+    
+    // Clear username error when user starts typing
+    if (name === 'username') {
+      setUsernameError('');
+    }
   };
 
   // Handle save profile changes
   const handleSaveChanges = async () => {
     setIsLoading(true);
+    setError(null);
+    setUsernameError('');
+    
     try {
-      // In a real app, save changes to backend
-      await updateUserProfile({
+      // Check if username is valid (not empty, no special characters except underscores)
+      const usernameRegex = /^[a-zA-Z0-9_]+$/;
+      if (!usernameRegex.test(formData.username)) {
+        setUsernameError('Username can only contain letters, numbers, and underscores');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if username is too short
+      if (formData.username.length < 3) {
+        setUsernameError('Username must be at least 3 characters long');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Save changes directly to backend
+      // The PostgreSQL unique constraint on username will be handled by the API
+      const updatedUser = await updateUserProfile({
         username: formData.username,
       });
       
-      // Update local state
-      setUserData({
-        ...userData,
-        ...formData,
-      });
-      
-      // Update localStorage
-      const cachedUserData = localStorage.getItem('user_data');
-      if (cachedUserData) {
-        try {
-          const parsedData = JSON.parse(cachedUserData);
-          const updatedData = {
-            ...parsedData,
-            ...formData
-          };
-          localStorage.setItem('user_data', JSON.stringify(updatedData));
-        } catch (e) {
-          console.error('Error updating user data in localStorage:', e);
-        }
-      }
+      // Update local state with the response from the server
+      setUserData(prev => ({
+        ...prev,
+        ...(updatedUser || {}),
+        username: formData.username
+      }));
       
       setIsEditMode(false);
       
+      // Update the localStorage cache
+      try {
+        const cachedUserData = localStorage.getItem('user_data');
+        if (cachedUserData) {
+          const parsedData = JSON.parse(cachedUserData);
+          const updatedData = { 
+            ...parsedData, 
+            username: formData.username,
+            ...(updatedUser || {})
+          };
+          localStorage.setItem('user_data', JSON.stringify(updatedData));
+        }
+      } catch (e) {
+        console.error('Error updating localStorage cache:', e);
+      }
+      
       // Dispatch an event to inform other components of the profile update
       window.dispatchEvent(new CustomEvent('profile-updated', { 
-        detail: { userData: {...userData, ...formData} } 
+        detail: { userData: {...userData, username: formData.username} } 
       }));
     } catch (error) {
       console.error('Error saving profile changes:', error);
-      // Show error message to user (you might want to add a snackbar/alert here)
+      
+      // Handle PostgreSQL unique constraint violation (HTTP 409 Conflict)
+      if (error.message && error.message.includes("409")) {
+        setUsernameError('This username is already taken. Please choose another one.');
+      } 
+      // Handle other database errors
+      else if (error.message && error.message.includes("500")) {
+        setError('A database error occurred. Please try again later.');
+      }
+      else {
+        setError('Failed to save changes. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -182,12 +300,17 @@ const ProfileModal = () => {
     
     try {
       const date = new Date(userData.created_at);
+      // Check if date is valid before formatting
+      if (isNaN(date.getTime())) {
+        return 'N/A';
+      }
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       });
     } catch (e) {
+      console.error('Error formatting date:', e);
       return 'N/A';
     }
   };
@@ -216,16 +339,28 @@ const ProfileModal = () => {
       >
         <Typography variant="h6" fontWeight="bold">User Profile</Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <IconButton 
-            onClick={handleToggleEditMode}
-            color="primary"
-            disabled={isLoading}
-            sx={{ 
-              bgcolor: isEditMode ? 'rgba(25, 118, 210, 0.08)' : 'transparent'
-            }}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
+          {!isLoading && !error && (
+            <IconButton 
+              onClick={handleToggleEditMode}
+              color="primary"
+              disabled={isLoading}
+              sx={{ 
+                bgcolor: isEditMode ? 'rgba(25, 118, 210, 0.08)' : 'transparent'
+              }}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          )}
+          {error && (
+            <IconButton 
+              onClick={loadUserData}
+              color="primary"
+              disabled={isLoading}
+              title="Retry loading profile data"
+            >
+              <RefreshIcon fontSize="small" />
+            </IconButton>
+          )}
           <IconButton onClick={handleClose} aria-label="close">
             <CloseIcon />
           </IconButton>
@@ -236,9 +371,37 @@ const ProfileModal = () => {
       
       {/* Content */}
       <DialogContent>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
         {isLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress size={40} />
+          <Box sx={{ pt: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', mb: 3 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: { xs: 2, sm: 0 } }}>
+                <Skeleton variant="circular" width={100} height={100} />
+              </Box>
+              
+              <Box sx={{ ml: { sm: 4 }, flex: 1, width: '100%' }}>
+                <Skeleton variant="text" sx={{ fontSize: '2rem', width: '60%' }} />
+                <Skeleton variant="text" sx={{ fontSize: '1rem', width: '80%', mt: 1 }} />
+                <Skeleton variant="text" sx={{ fontSize: '1rem', width: '70%', mt: 1 }} />
+                <Skeleton variant="text" sx={{ fontSize: '1rem', width: '40%', mt: 1 }} />
+              </Box>
+            </Box>
+            
+            <Divider sx={{ my: 2 }} />
+            
+            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+              Activity Stats
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+              <Skeleton variant="rectangular" width="calc(50% - 8px)" height={80} sx={{ borderRadius: 2 }} />
+              <Skeleton variant="rectangular" width="calc(50% - 8px)" height={80} sx={{ borderRadius: 2 }} />
+            </Box>
           </Box>
         ) : (
           <Box sx={{ pt: 2 }}>
@@ -246,7 +409,7 @@ const ProfileModal = () => {
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', mb: 3 }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: { xs: 2, sm: 0 } }}>
                 <Avatar
-                  src={UserProfile}
+                  src={UserProfile} // Always use the default image since we don't store custom images
                   alt={userData?.username || 'User'}
                   sx={{
                     width: 100,
@@ -288,6 +451,8 @@ const ProfileModal = () => {
                       variant="outlined"
                       fullWidth
                       size="small"
+                      error={!!usernameError}
+                      helperText={usernameError}
                     />
                     <TextField
                       label="Email"
@@ -310,13 +475,6 @@ const ProfileModal = () => {
                       <EmailIcon sx={{ color: 'text.secondary', mr: 1, fontSize: '1.2rem' }} />
                       <Typography variant="body1" color="text.secondary">
                         {userData?.email || 'No email provided'}
-                      </Typography>
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <PersonIcon sx={{ color: 'text.secondary', mr: 1, fontSize: '1.2rem' }} />
-                      <Typography variant="body1" color="text.secondary">
-                        {userData?.role || 'Standard User'}
                       </Typography>
                     </Box>
                     
@@ -355,7 +513,7 @@ const ProfileModal = () => {
                 }}
               >
                 <Typography variant="h5" fontWeight="bold" color="primary.main">
-                  {userData?.chat_count || '0'}
+                  {chatStats.totalChats || '0'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Total Chats
@@ -375,7 +533,7 @@ const ProfileModal = () => {
                 }}
               >
                 <Typography variant="h5" fontWeight="bold" color="primary.main">
-                  {userData?.last_active_days || '0'}
+                  {chatStats.activeDays || '0'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Days Active
@@ -394,9 +552,9 @@ const ProfileModal = () => {
             <Button 
               onClick={handleSaveChanges} 
               variant="contained"
-              disabled={!formData.username.trim() || !formData.email.trim()}
+              disabled={!formData.username.trim() || !formData.email.trim() || isLoading || !!usernameError}
             >
-              Save Changes
+              {isLoading ? <CircularProgress size={24} /> : 'Save Changes'}
             </Button>
           </>
         ) : (

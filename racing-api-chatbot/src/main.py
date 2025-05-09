@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from datetime import timedelta, datetime
 import os
 import sys
 
@@ -60,6 +60,12 @@ class QueryRequest(BaseModel):
     query: str
     thread_id: str
     user_key: str
+
+class CheckUsernameRequest(BaseModel):
+    username: str
+
+class UpdateUserRequest(BaseModel):
+    username: str
 
 @app.post("/chat")
 async def chat(
@@ -135,6 +141,63 @@ async def get_chat_history(
         "created_at": item.created_at.isoformat()
     } for item in history]}
 
+@app.put("/users/me", response_model=dict)
+async def update_user(
+    request: UpdateUserRequest,
+    db: Session = Depends(db_manager.get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update current user's profile information.
+    
+    Currently supports updating username.
+    """
+    print(f"Received update request with username: {request.username}")
+    try:
+        # Check if the username already exists for any other user
+        if request.username != current_user.username:
+            user_exists = db.query(User).filter(
+                User.username == request.username,
+                User.id != current_user.id
+            ).first() is not None
+            
+            if user_exists:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Username already exists"
+                )
+        
+        # Update user information
+        current_user.username = request.username
+        current_user.updated_at = datetime.utcnow()
+        
+        # Save changes to database
+        db.commit()
+        db.refresh(current_user)
+        
+        # Return updated user data
+        result = {
+            "id": current_user.id,
+            "email": current_user.email,
+            "username": current_user.username,
+            "is_active": current_user.is_active,
+            "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+            "updated_at": current_user.updated_at.isoformat() if current_user.updated_at else None,
+            "chat_count": db_manager.get_user_chat_count(current_user.email)
+        }
+        print(f"Successfully updated username to: {current_user.username}")
+        return result
+    except HTTPException as http_ex:
+        print(f"HTTP exception during username update: {http_ex.detail}")
+        raise
+    except Exception as e:
+        db.rollback()
+        error_msg = f"Error updating username: {str(e)}"
+        print(error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_msg
+        )
+
 @app.post("/signup", response_model=Token)
 async def signup(user: UserCreate, db: Session = Depends(db_manager.get_db)):
     # Check if user already exists
@@ -143,6 +206,14 @@ async def signup(user: UserCreate, db: Session = Depends(db_manager.get_db)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
+        )
+    
+    # Check if username already exists
+    username_exists = db.query(User).filter(User.username == user.username).first() is not None
+    if username_exists:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already taken"
         )
     
     # Create new user
@@ -181,4 +252,19 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 
 @app.get("/users/me")
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
-    return current_user
+    """Return current user information.
+    
+    This endpoint returns the authenticated user's details from the database.
+    """
+    # Convert the SQLAlchemy model to a dictionary
+    user_data = {
+        "id": current_user.id,
+        "email": current_user.email,
+        "username": current_user.username,
+        "is_active": current_user.is_active,
+        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+        "updated_at": current_user.updated_at.isoformat() if current_user.updated_at else None,
+        # Include calculated stats from the database
+        "chat_count": db_manager.get_user_chat_count(current_user.email)
+    }
+    return user_data

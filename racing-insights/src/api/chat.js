@@ -88,25 +88,7 @@ export const login = async (username, password) => {
  */
 export const getCurrentUser = async () => {
   try {
-    // If in development mode and using mock data, return from localStorage
-    if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_USE_MOCK_DATA === 'true') {
-      const userData = localStorage.getItem('user_data');
-      if (userData) {
-        return JSON.parse(userData);
-      }
-      // Return default mock data
-      return {
-        id: 'user-1',
-        username: 'Demo User',
-        email: 'demo@racinginsights.com',
-        created_at: '2025-01-15T00:00:00Z',
-        is_active: true,
-        role: 'Standard User',
-        chat_count: 24,
-        last_active_days: 7
-      };
-    }
-
+    // Remove mock data condition to ensure we always call the API
     const response = await fetch(`${API_BASE_URL}/users/me`, {
       method: 'GET',
       headers: {
@@ -116,10 +98,12 @@ export const getCurrentUser = async () => {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch user data: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch user data: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('API response from getCurrentUser:', data); // Add logging to debug
     
     // Cache user data in localStorage for offline access
     localStorage.setItem('user_data', JSON.stringify(data));
@@ -127,6 +111,15 @@ export const getCurrentUser = async () => {
     return data;
   } catch (error) {
     console.error('Error fetching user data:', error);
+    // Try to get cached data if API call fails
+    const cachedUserData = localStorage.getItem('user_data');
+    if (cachedUserData) {
+      try {
+        return JSON.parse(cachedUserData);
+      } catch (e) {
+        console.error('Error parsing cached user data:', e);
+      }
+    }
     throw error;
   }
 };
@@ -138,8 +131,9 @@ export const getCurrentUser = async () => {
  */
 export const updateUserProfile = async (userData) => {
   try {
+    // Using PUT method with the /users/me endpoint from main.py
     const response = await fetch(`${API_BASE_URL}/users/me`, {
-      method: 'PATCH',
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('access_token')}`
@@ -148,7 +142,8 @@ export const updateUserProfile = async (userData) => {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to update user data: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to update user data: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
@@ -167,6 +162,8 @@ export const updateUserProfile = async (userData) => {
     throw error;
   }
 };
+
+/**
 
 /**
  * Logout the user (client-side only)

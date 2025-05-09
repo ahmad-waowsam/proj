@@ -166,11 +166,8 @@ export default function AppAppBar({ toggleDrawer, drawerOpen }) {
   
   const handleViewProfile = () => {
     handleUserMenuClose();
-    // Implemented as a modal in the current page instead of navigation
-    // This will trigger the profile modal to open
-    window.dispatchEvent(new CustomEvent('open-profile-modal', { 
-      detail: { userData: currentUser } 
-    }));
+    // Don't pass userData here so the modal will make a fresh API call
+    window.dispatchEvent(new CustomEvent('open-profile-modal'));
   };
 
   return (

@@ -78,9 +78,7 @@ export default function ChatHistoryList({ title, sessions = [] }) {
                     : 'rgba(0, 0, 0, 0.03)',
                 },
                 "&:focus-visible": {
-                  outline: "2px solid",
-                  outlineColor: "primary.main",
-                  outlineOffset: "-2px",
+                  outline: "none", // Removed the outline
                 },
               }}
               component="button"
@@ -147,7 +145,7 @@ export default function ChatHistoryList({ title, sessions = [] }) {
                     <Typography
                       variant="caption"
                       sx={{
-                        color: "text.tertiary",
+                        color: theme.palette.mode === 'dark' ? 'text.secondary' : 'text.tertiary',
                         fontSize: "0.75rem",
                       }}
                     >

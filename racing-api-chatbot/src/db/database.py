@@ -845,6 +845,49 @@ class DatabaseManager:
             db.rollback()
             raise
 
+    def get_user_chat_count(self, user_email: str) -> int:
+        """Get the number of chat messages for a specific user.
+        
+        Args:
+            user_email (str): The user's email address
+            
+        Returns:
+            int: Number of chat messages
+        """
+        # Input validation
+        if not user_email:
+            log_message("Warning: Empty user_email provided to get_user_chat_count")
+            return 0
+            
+        log_message(f"Getting chat count for user: {user_email}")
+        
+        try:
+            # Create a dedicated session for this operation
+            db = self.SessionLocal()
+            
+            try:
+                # Get count with error handling
+                count = db.query(ChatHistory).filter(
+                    ChatHistory.user_key == user_email
+                ).count()
+                
+                log_message(f"Found {count} chat messages for user: {user_email}")
+                return count
+                
+            except Exception as e:
+                log_message(f"Error querying chat count for {user_email}: {str(e)}")
+                # Explicitly rollback on error
+                db.rollback()
+                return 0
+                
+            finally:
+                # Always ensure the session is closed
+                db.close()
+                
+        except Exception as e:
+            log_message(f"Unexpected error in get_user_chat_count: {str(e)}")
+            return 0
+
 def get_db():
     """Get a database session."""
     db = DatabaseManager().SessionLocal()
@@ -854,4 +897,4 @@ def get_db():
         db.close()
 
 # Create a global instance of DatabaseManager
-db_manager = DatabaseManager() 
+db_manager = DatabaseManager()
